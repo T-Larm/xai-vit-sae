@@ -70,8 +70,8 @@ def label_features(
 
     for feat_idx in range(n_features):
         top_k_idx = find_top_k_indices(sae_activations, feat_idx, k)
-        patches   = [token_to_image[i.item()] for i in top_k_idx
-                     if i.item() in token_to_image]
+        top_k_list = [i.item() for i in top_k_idx]
+        patches    = [token_to_image[idx] for idx in top_k_list if idx in token_to_image]
 
         if not patches:
             results['labels'].append('unknown')
