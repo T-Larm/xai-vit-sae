@@ -25,7 +25,7 @@ class SAE(nn.Module):
 
     def loss(self, x: torch.Tensor, f: torch.Tensor, x_hat: torch.Tensor):
         mse = ((x - x_hat) ** 2).mean()
-        l1 = f.abs().mean()
+        l1 = f.abs().sum(dim=-1).mean()  # per-token sum, then mean over batch
         return mse + self.alpha * l1, mse, l1
 
     def normalize_decoder(self):
