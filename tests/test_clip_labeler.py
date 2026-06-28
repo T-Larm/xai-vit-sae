@@ -2,7 +2,14 @@ import torch
 import sys
 sys.path.insert(0, '.')
 from PIL import Image
-from src.clip_labeler import find_top_k_indices, assign_labels_from_embeddings, crop_patch
+from src.clip_labeler import (
+    assign_labels_from_embeddings,
+    compute_correlation_scores,
+    compute_separation_scores,
+    crop_patch,
+    find_top_k_indices,
+    get_vocab,
+)
 
 
 def test_find_top_k_returns_highest():
@@ -46,3 +53,15 @@ def test_assign_labels_returns_vocab_strings():
     labels = assign_labels_from_embeddings(mean_img_embs, text_embs, vocab)
     assert len(labels) == 3
     assert all(l in vocab for l in labels)
+
+
+def test_get_vocab_adds_patch_terms_and_filters_attractors():
+    vocab = get_vocab()
+    assert 'green leaf' in vocab
+    assert 'animal fur' in vocab
+    assert 'web site' not in vocab
+    assert 'home page' not in vocab
+
+
+def test_correlation_name_remains_backward_compatible():
+    assert compute_correlation_scores is not compute_separation_scores
