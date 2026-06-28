@@ -43,3 +43,8 @@ def test_distribution_counts():
     dist = get_category_distribution(labels)
     assert dist['background'] == 2
     assert dist['object'] == 1
+
+
+def test_color_label():
+    assert assign_category('black cat') == 'color'
+    assert assign_category('white dog') == 'color'

@@ -20,8 +20,7 @@ _RULES = [
                      'metal surface', 'wooden surface', 'stone surface',
                      'concrete surface', 'brick', 'tile', 'stripe', 'pattern',
                      'texture', 'edge', 'dot', 'grid']),
-    ('color',       ['dark background', 'bright background', 'white', 'black',
-                     'brown', 'dark', 'bright']),
+    ('color',       ['white', 'black', 'brown', 'dark', 'bright']),
 ]
 
 # Pre-compile patterns for efficiency; strip surrounding spaces from color keywords.
@@ -37,7 +36,7 @@ def assign_category(label: str) -> str:
     Priority: background > object_part > scene > texture > color > object.
     'object' is the default catch-all for ImageNet class names.
     Matching uses word boundaries to avoid substring collisions
-    (e.g. 'face' inside 'surface', 'ear' inside 'feather').
+    (e.g. 'face' inside 'surface', 'ear' inside 'wear').
     """
     label_lower = label.lower()
     for category, patterns in _PATTERNS:

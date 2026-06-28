@@ -26,7 +26,7 @@ def test_compute_spatial_variance_identical():
 def test_compute_spatial_variance_spread():
     # patches at corners: (0,0)=idx0 and (13,13)=idx195
     var = compute_spatial_variance([0, 195])
-    assert var > 0
+    assert var == pytest.approx(84.5)
 
 
 def test_compute_spatial_variance_single():
