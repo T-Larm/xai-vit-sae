@@ -2,6 +2,22 @@ import torch
 from PIL import Image
 
 
+# CLIP attractors: dominate cosine similarity but are rarely correct for image patches
+_BLOCKLIST = {'web site', 'website', 'home page'}
+
+# Patch-level vocabulary for low-level / local visual features
+_PATCH_VOCAB = [
+    'green leaf', 'animal fur', 'white fur', 'black fur', 'brown fur',
+    'metal surface', 'wooden surface', 'concrete surface', 'stone surface',
+    'grass texture', 'fabric texture', 'feather texture', 'scale texture',
+    'animal eye', 'bird beak', 'animal nose', 'animal ear', 'animal paw',
+    'wheel', 'window', 'roof tile', 'brick wall', 'wooden grid',
+    'vertical stripe', 'horizontal stripe', 'diagonal line', 'circular pattern',
+    'dark background', 'bright background', 'blurred background',
+    'water surface', 'sandy surface', 'snow surface',
+    'wing', 'fin', 'tail', 'claw', 'face',
+]
+
 # Extra terms for low-level/texture features not well-covered by ImageNet class names
 _TEXTURE_SCENE_VOCAB = [
     'fur', 'feather', 'scales', 'skin', 'wool', 'fabric', 'metal', 'wood',
@@ -13,20 +29,20 @@ _TEXTURE_SCENE_VOCAB = [
 
 
 def get_vocab() -> list:
-    """Return ImageNet-1000 class names plus texture/scene supplements.
+    """Return ImageNet-1000 class names plus patch-level and texture/scene supplements.
 
     Uses torchvision's built-in label list so we never hardcode 1000 strings.
-    Falls back to _TEXTURE_SCENE_VOCAB only if torchvision is unavailable.
+    Blocklisted terms (CLIP attractors that are wrong for image patches) are removed.
     """
     try:
         from torchvision.models import ResNet50_Weights
         imagenet_classes = list(ResNet50_Weights.IMAGENET1K_V1.meta['categories'])
     except Exception:
         imagenet_classes = []
-    # Append texture/scene terms not present in ImageNet class names
     existing = set(imagenet_classes)
-    extras = [w for w in _TEXTURE_SCENE_VOCAB if w not in existing]
-    return imagenet_classes + extras
+    extras = [w for w in _PATCH_VOCAB + _TEXTURE_SCENE_VOCAB if w not in existing]
+    vocab = imagenet_classes + extras
+    return [w for w in vocab if w.lower() not in _BLOCKLIST]
 
 
 # Module-level cache; built lazily on first call to label_features
@@ -153,7 +169,7 @@ def label_features(
     return results
 
 
-def compute_correlation_scores(
+def compute_separation_scores(
     sae_activations: torch.Tensor,
     token_to_image: dict,
     labels: list,
@@ -161,12 +177,12 @@ def compute_correlation_scores(
     device: str = 'cuda',
 ) -> list:
     """
-    Interpretability score based on top-vs-bottom activation separation.
+    CLIP interpretability score based on top-vs-bottom activation separation.
 
     For each feature, compare the CLIP similarity of the feature label on the
     highest-activation tokens against the lowest-activation tokens. A larger
-    positive value means the label better concentrates on tokens where the
-    feature actually fires.
+    positive value means the label better concentrates on tokens where the feature
+    fires. This is not a Spearman correlation.
     """
     from transformers import CLIPProcessor, CLIPModel
 
@@ -229,3 +245,20 @@ def compute_correlation_scores(
         sep_scores.append(score.item())
 
     return sep_scores
+
+
+def compute_correlation_scores(
+    sae_activations: torch.Tensor,
+    token_to_image: dict,
+    labels: list,
+    clip_model_name: str = 'openai/clip-vit-base-patch32',
+    device: str = 'cuda',
+) -> list:
+    """Backward-compatible alias for compute_separation_scores."""
+    return compute_separation_scores(
+        sae_activations,
+        token_to_image,
+        labels,
+        clip_model_name=clip_model_name,
+        device=device,
+    )
