@@ -28,6 +28,30 @@ def save_activations(buffers: dict, output_dir: str, layer_indices: list):
         print(f'Layer {layer_idx + 1}: saved {flat.shape} to {path}')
 
 
+def _stratified_indices(dataset, n_images: int, seed: int = 42) -> list:
+    """Return indices for n_images with equal coverage across all classes.
+
+    ImageFolder sorts images by class alphabetically, so a plain range() would
+    only cover the first ~n_images/50 ImageNet classes. Stratified sampling
+    ensures all 1000 classes are represented.
+    """
+    import random
+    rng = random.Random(seed)
+    class_to_indices: dict = {}
+    for idx, (_, label) in enumerate(dataset.imgs):
+        class_to_indices.setdefault(label, []).append(idx)
+    per_class = max(1, n_images // len(class_to_indices))
+    indices = []
+    for label_indices in class_to_indices.values():
+        indices.extend(rng.sample(label_indices, min(per_class, len(label_indices))))
+    # Top up to exactly n_images if rounding left a shortfall
+    if len(indices) < n_images:
+        used = set(indices)
+        remaining = [i for i in range(len(dataset)) if i not in used]
+        indices.extend(rng.sample(remaining, min(n_images - len(indices), len(remaining))))
+    return indices[:n_images]
+
+
 def run_collection(
     imagenet_val_dir: str,
     output_dir: str,
@@ -53,8 +77,9 @@ def run_collection(
         transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
     ])
     dataset = datasets.ImageFolder(imagenet_val_dir, transform=transform)
-    subset  = Subset(dataset, list(range(min(n_images, len(dataset)))))
-    loader  = DataLoader(subset, batch_size=batch_size, num_workers=4, pin_memory=True)
+    indices = _stratified_indices(dataset, min(n_images, len(dataset)))
+    subset  = Subset(dataset, indices)
+    loader  = DataLoader(subset, batch_size=batch_size, num_workers=0, pin_memory=False)
 
     with torch.no_grad():
         for images, _ in tqdm(loader, desc='Collecting activations'):
@@ -64,3 +89,8 @@ def run_collection(
         hook.remove()
 
     save_activations(captured, output_dir, layer_indices)
+
+    # Save the selected image indices so labeling/eval can map activations back to the correct images
+    idx_path = Path(output_dir) / 'selected_indices.pt'
+    torch.save(torch.tensor(indices, dtype=torch.long), idx_path)
+    print(f'Saved selected_indices ({len(indices)}) → {idx_path}')

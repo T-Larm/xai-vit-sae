@@ -23,10 +23,12 @@ class SAE(nn.Module):
         f = self.encode(x)
         return f, self.decode(f)
 
-    def loss(self, x: torch.Tensor, f: torch.Tensor, x_hat: torch.Tensor):
+    def loss(self, x: torch.Tensor, f: torch.Tensor, x_hat: torch.Tensor,
+             alpha: float = None):
+        alpha = alpha if alpha is not None else self.alpha
         mse = ((x - x_hat) ** 2).mean()
         l1 = f.abs().sum(dim=-1).mean()  # per-token sum, then mean over batch
-        return mse + self.alpha * l1, mse, l1
+        return mse + alpha * l1, mse, l1
 
     def normalize_decoder(self):
         with torch.no_grad():
