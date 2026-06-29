@@ -213,6 +213,8 @@ def compute_separation_scores(
             e = _normalize_rows(e)
         img_embs_list.append(e.cpu())
     img_embs = torch.cat(img_embs_list)  # (n_valid, 512)
+    del patches, img_embs_list  # free ~600MB before allocating valid_acts
+    import gc; gc.collect()
 
     # Text embeddings for unique labels only (much smaller than vocab)
     unique_labels = list(dict.fromkeys(labels))
